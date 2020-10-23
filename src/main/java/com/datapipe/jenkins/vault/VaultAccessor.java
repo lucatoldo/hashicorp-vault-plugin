@@ -8,6 +8,7 @@ import com.bettercloud.vault.response.VaultResponse;
 import com.datapipe.jenkins.vault.credentials.VaultCredential;
 import com.datapipe.jenkins.vault.exception.VaultPluginException;
 import java.io.Serializable;
+import java.util.Map;
 
 public class VaultAccessor implements Serializable {
 
@@ -84,6 +85,18 @@ public class VaultAccessor implements Serializable {
         this.credential = credential;
     }
 
+    public LogicalResponse write(String path, Map<String, Object> secrets, Integer engineVersion) {
+        try {
+            this.config.engineVersion(engineVersion);
+            return vault.logical().write(path, secrets);
+        } catch (VaultException e) {
+            throw new VaultPluginException(
+                "could not write to vault: " + e.getMessage() + " at path: " + path, e);
+        }
+    }
+    
+    
+    
     public LogicalResponse read(String path, Integer engineVersion) {
         try {
             this.config.engineVersion(engineVersion);
