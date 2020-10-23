@@ -41,6 +41,7 @@ public class VaultSecretValue
 
     private String envVar;
     private final String vaultKey;
+    private String vaultSecret;
 
     @Deprecated
     public VaultSecretValue(String envVar, @NonNull String vaultKey) {
@@ -58,6 +59,12 @@ public class VaultSecretValue
         this.envVar = envVar;
     }
 
+    @DataBoundSetter
+    public void setVaultSecret(String vaultSecret) {
+        this.vaultSecret = vaultSecret;
+    }
+
+    
     /**
      *
      * @return envVar if value is not empty otherwise return vaultKey
@@ -69,6 +76,18 @@ public class VaultSecretValue
     public String getVaultKey() {
         return vaultKey;
     }
+
+    public String getVaultSecret() {
+        return vaultSecret;
+    }
+    
+    public boolean hasSecret() {
+    	if (null !=vaultSecret) {
+    		return true;
+    	}
+    	return false;
+    }
+    
 
     @Extension
     public static final class DescriptorImpl

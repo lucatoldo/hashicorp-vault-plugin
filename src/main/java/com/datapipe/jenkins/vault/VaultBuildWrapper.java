@@ -60,6 +60,7 @@ import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -155,7 +156,18 @@ public class VaultBuildWrapper extends SimpleBuildWrapper {
             Integer engineVersion = Optional.ofNullable(vaultSecret.getEngineVersion())
                 .orElse(configuration.getEngineVersion());
             try {
-                LogicalResponse response = vaultAccessor.read(path, engineVersion);
+            	VaultSecretValue v = vaultSecret.getSecretValues().get(0);
+            	LogicalResponse response = null;
+            	if (v.hasSecret()) {
+            		HashMap<String, Object> secrets = new HashMap<>();
+            		List<VaultSecretValue> vsvl = vaultSecret.getSecretValues();   
+            		for ( VaultSecretValue vsv :vsvl) {
+            			secrets.put(vsv.getVaultKey(), vsv.getVaultSecret());
+            		}
+            		response = vaultAccessor.write(path, secrets, engineVersion);
+            	} else {
+            		response = vaultAccessor.read(path, engineVersion);
+            	}
                 if (responseHasErrors(path, response)) {
                     continue;
                 }

@@ -34,89 +34,166 @@ import static org.mockito.Mockito.when;
 
 public class VaultBuildWrapperTest {
 
-    @Rule
-    public ExpectedException thrown = ExpectedException.none();
+	@Rule
+	public ExpectedException thrown = ExpectedException.none();
 
-    @Test
-    public void testWithNonExistingPath() throws IOException, InterruptedException {
-        String path = "not/existing";
-        TestWrapper wrapper = new TestWrapper(standardSecrets(path));
-        final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        PrintStream logger = new PrintStream(baos);
-        SimpleBuildWrapper.Context context = null;
-        Run<?, ?> build = mock(Build.class);
-        when(build.getParent()).thenReturn(null);
-        EnvVars envVars = mock(EnvVars.class);
-        when(envVars.expand(path)).thenReturn(path);
+	@Test
+	public void testWrite() throws IOException, InterruptedException {
+		String path = "are/existing";
+		TestWrapperWrite wrapper = new TestWrapperWrite(standardSecrets(path));
+		final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		PrintStream logger = new PrintStream(baos);
+		SimpleBuildWrapper.Context context = null;
+		Run<?, ?> build = mock(Build.class);
+		when(build.getParent()).thenReturn(null);
+		EnvVars envVars = mock(EnvVars.class);
+		when(envVars.expand(path)).thenReturn(path);
 
-        wrapper.run(context, build, envVars, logger);
+		wrapper.run(context, build, envVars, logger);
 
-        try { // now we expect the exception to raise
-            wrapper.vaultConfig.setFailIfNotFound(true);
-            wrapper.run(context, build, envVars, logger);
-        } catch (VaultPluginException e) {
-            assertThat(e.getMessage(), is("Vault credentials not found for 'not/existing'"));
-        }
+		try { // now we expect the exception to raise
+			wrapper.vaultConfig.setFailIfNotFound(true);
+			wrapper.run(context, build, envVars, logger);
+		} catch (VaultPluginException e) {
+			assertThat(e.getMessage(), is("Vault credentials not found for 'not/existing'"));
+		}
 
-        wrapper.verifyCalls();
-        assertThat(new String(baos.toByteArray(), StandardCharsets.UTF_8),
-            containsString("Vault credentials not found for 'not/existing'"));
-    }
+		wrapper.verifyCalls();
+		assertThat(new String(baos.toByteArray(), StandardCharsets.UTF_8),
+				containsString("Vault credentials not found for 'not/existing'"));
+	}
 
-    private List<VaultSecret> standardSecrets(String path) {
-        List<VaultSecret> secrets = new ArrayList<>();
-        VaultSecretValue secretValue = new VaultSecretValue("envVar1", "key1");
-        List<VaultSecretValue> secretValues = new ArrayList<>();
-        secretValues.add(secretValue);
-        VaultSecret secret = new VaultSecret(path, secretValues);
-        secret.setEngineVersion(2);
-        secrets.add(secret);
-        return secrets;
-    }
+	@Test
+	public void testWithNonExistingPath() throws IOException, InterruptedException {
+		String path = "not/existing";
+		TestWrapper wrapper = new TestWrapper(standardSecrets(path));
+		final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		PrintStream logger = new PrintStream(baos);
+		SimpleBuildWrapper.Context context = null;
+		Run<?, ?> build = mock(Build.class);
+		when(build.getParent()).thenReturn(null);
+		EnvVars envVars = mock(EnvVars.class);
+		when(envVars.expand(path)).thenReturn(path);
 
-    @NotNull
-    private LogicalResponse getNotFoundResponse() {
-        LogicalResponse resp = mock(LogicalResponse.class);
-        RestResponse rest = mock(RestResponse.class);
-        when(resp.getData()).thenReturn(new HashMap<>());
-        when(resp.getRestResponse()).thenReturn(rest);
-        when(rest.getStatus()).thenReturn(404);
-        return resp;
-    }
+		wrapper.run(context, build, envVars, logger);
 
-    class TestWrapper extends VaultBuildWrapper {
+		try { // now we expect the exception to raise
+			wrapper.vaultConfig.setFailIfNotFound(true);
+			wrapper.run(context, build, envVars, logger);
+		} catch (VaultPluginException e) {
+			assertThat(e.getMessage(), is("Vault credentials not found for 'not/existing'"));
+		}
 
-        VaultAccessor mockAccessor;
-        VaultConfiguration vaultConfig = new VaultConfiguration();
+		wrapper.verifyCalls();
+		assertThat(new String(baos.toByteArray(), StandardCharsets.UTF_8),
+				containsString("Vault credentials not found for 'not/existing'"));
+	}
 
-        public TestWrapper(List<VaultSecret> vaultSecrets) {
-            super(vaultSecrets);
+	private List<VaultSecret> standardSecrets(String path) {
+		List<VaultSecret> secrets = new ArrayList<>();
+		VaultSecretValue secretValue = new VaultSecretValue("envVar1", "key1");
+		secretValue.setVaultSecret("secret1");
+		List<VaultSecretValue> secretValues = new ArrayList<>();
+		secretValues.add(secretValue);
+		VaultSecret secret = new VaultSecret(path, secretValues);
+		secret.setEngineVersion(2);
+		secrets.add(secret);
+		return secrets;
+	}
 
-            vaultConfig.setVaultUrl("testmock");
-            vaultConfig.setVaultCredentialId("credId");
-            vaultConfig.setFailIfNotFound(false);
-            mockAccessor = mock(VaultAccessor.class);
-            doReturn(mockAccessor).when(mockAccessor).init();
-            LogicalResponse response = getNotFoundResponse();
-            when(mockAccessor.read("not/existing", 2)).thenReturn(response);
-            setVaultAccessor(mockAccessor);
-            setConfiguration(vaultConfig);
-        }
+	@NotNull
+	private LogicalResponse getNotFoundResponse() {
+		LogicalResponse resp = mock(LogicalResponse.class);
+		RestResponse rest = mock(RestResponse.class);
+		when(resp.getData()).thenReturn(new HashMap<>());
+		when(resp.getRestResponse()).thenReturn(rest);
+		when(rest.getStatus()).thenReturn(404);
+		return resp;
+	}
 
-        public void run(Context context, Run build, EnvVars envVars, PrintStream logger) {
-            this.logger = logger;
-            provideEnvironmentVariablesFromVault(context, build, envVars);
-        }
+	@NotNull
+	private LogicalResponse writeResponse() {
+		LogicalResponse resp = mock(LogicalResponse.class);
+		RestResponse rest = mock(RestResponse.class);
+		
+		HashMap<String, String> response  = new HashMap<String, String>() {{
+		    put("key1", "value1");
+		}};
+		
+		when(resp.getData()).thenReturn(response);
+		when(resp.getRestResponse()).thenReturn(rest);
+		when(rest.getStatus()).thenReturn(200);
+		return resp;
+	}
+	
+	class TestWrapperWrite extends VaultBuildWrapper {
 
-        @Override
-        protected VaultCredential retrieveVaultCredentials(Run build) {
-            return null;
-        }
+		VaultAccessor mockAccessor;
+		VaultConfiguration vaultConfig = new VaultConfiguration();
 
-        public void verifyCalls() {
-            verify(mockAccessor, times(2)).init();
-            verify(mockAccessor, times(2)).read("not/existing", 2);
-        }
-    }
+		public TestWrapperWrite(List<VaultSecret> vaultSecrets) {
+			super(vaultSecrets);
+			vaultConfig.setVaultUrl("testmock");
+			vaultConfig.setVaultCredentialId("credId");
+			vaultConfig.setFailIfNotFound(false);
+			mockAccessor = mock(VaultAccessor.class);
+			doReturn(mockAccessor).when(mockAccessor).init();
+			LogicalResponse response = writeResponse();
+			when(mockAccessor.read("are/existing", 2)).thenReturn(response);
+			setVaultAccessor(mockAccessor);
+			setConfiguration(vaultConfig);
+		}
+		
+		public void run(Context context, Run build, EnvVars envVars, PrintStream logger) {
+			this.logger = logger;
+			provideEnvironmentVariablesFromVault(context, build, envVars);
+		}
+
+		@Override
+		protected VaultCredential retrieveVaultCredentials(Run build) {
+			return null;
+		}
+
+		public void verifyCalls() {
+			verify(mockAccessor, times(2)).init();
+			verify(mockAccessor, times(2)).read("not/existing", 2);
+		}
+
+	}
+
+	class TestWrapper extends VaultBuildWrapper {
+
+		VaultAccessor mockAccessor;
+		VaultConfiguration vaultConfig = new VaultConfiguration();
+
+		public TestWrapper(List<VaultSecret> vaultSecrets) {
+			super(vaultSecrets);
+
+			vaultConfig.setVaultUrl("testmock");
+			vaultConfig.setVaultCredentialId("credId");
+			vaultConfig.setFailIfNotFound(false);
+			mockAccessor = mock(VaultAccessor.class);
+			doReturn(mockAccessor).when(mockAccessor).init();
+			LogicalResponse response = getNotFoundResponse();
+			when(mockAccessor.read("not/existing", 2)).thenReturn(response);
+			setVaultAccessor(mockAccessor);
+			setConfiguration(vaultConfig);
+		}
+
+		public void run(Context context, Run build, EnvVars envVars, PrintStream logger) {
+			this.logger = logger;
+			provideEnvironmentVariablesFromVault(context, build, envVars);
+		}
+
+		@Override
+		protected VaultCredential retrieveVaultCredentials(Run build) {
+			return null;
+		}
+
+		public void verifyCalls() {
+			verify(mockAccessor, times(2)).init();
+			verify(mockAccessor, times(2)).read("not/existing", 2);
+		}
+	}
 
 }
