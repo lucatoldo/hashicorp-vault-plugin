@@ -2,7 +2,8 @@
 # Jenkins Vault Plugin
 
 This plugin adds a build wrapper to set environment variables from a HashiCorp [Vault](https://www.vaultproject.io/) secret. Secrets are generally masked in the build log, so you can't accidentally print them.  
-It also has the ability to inject Vault credentials into a build pipeline or freestyle job for fine-grained vault interactions.
+It also has the ability to inject Vault credentials into a build pipeline or freestyle job for fine-grained vault interactions. (READ operation from Vault)
+Furthermore, it has the ability to inject secrets (e.g. configs) from a build pipeline or freestyle job to vault. (WRITE operation to Vault)
 
 ## Vault Authentication Backends
 This plugin allows authenticating against Vault using the AppRole authentication backend. Hashicorp recommends using AppRole for Servers / automated workflows (like Jenkins) and using Tokens (default mechanism, Github Token, ...) for every developer's machine.
@@ -95,7 +96,7 @@ If you still use free style jobs (hint: you should consider migrating to [Jenkin
 
 The secrets are available as environment variables then.
 
-### Usage via Jenkinsfile
+### Jenkinsfile READING a Secret FROM VAULT
 Let the code speak for itself:
 ```groovy
 node {
@@ -123,6 +124,39 @@ node {
     }
 }
 ```
+
+### Jenkinsfile WRITING a Secret INTO VAULT
+Let the code speak for itself:
+```groovy
+node {
+    // define the secrets and the env variables
+    // engine version can be defined on secret, job, folder or global.
+    // the default is engine version 2 unless otherwise specified globally.
+    def secrets = [
+        [path: 'secret/testing', engineVersion: 1, secretValues: [
+            [envVar: 'testing', vaultKey: 'value_one', vaultSecret:'secret_value_one'],
+            [envVar: 'testing_again', vaultKey: 'value_two', vaultSecret:'secret_valut_two']]],
+        [path: 'secret/another_test', engineVersion: 2, secretValues: [
+            [vaultKey: 'another_test', vaultSecret: 'secret_another_test']]]
+    ]
+
+    // optional configuration, if you do not provide this the next higher configuration
+    // (e.g. folder or global) will be used
+    def configuration = [vaultUrl: 'http://my-very-other-vault-url.com',
+                         vaultCredentialId: 'my-vault-cred-id',
+                         engineVersion: 1]
+    // inside this block your credentials will be available as env variables
+    withVault([configuration: configuration, vaultSecrets: secrets]) {
+        sh 'echo $testing'
+        sh 'echo $testing_again'
+        sh 'echo $another_test'
+    }
+}
+```
+
+In other words, in order to perform a WRITE operation, one simply needs to provide a VALUE to the Secret.
+The Wrapper identifies this being a WRITE request and therefore performs it, using the same credential mechanism as above.
+
 In the future we might migrate to a [BuildStep](http://javadoc.jenkins-ci.org/hudson/tasks/BuildStep.html) instead of a BuildWrapper.
 
 #### Use of dynamic credentials
