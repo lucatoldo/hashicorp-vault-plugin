@@ -26,6 +26,7 @@ import org.junit.rules.ExpectedException;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -40,7 +41,7 @@ public class VaultBuildWrapperTest {
 	@Test
 	public void testWrite() throws IOException, InterruptedException {
 		String path = "are/existing";
-		TestWrapperWrite wrapper = new TestWrapperWrite(standardSecrets(path));
+		TestWrapperWrite wrapper = new TestWrapperWrite(writeSecrets(path));
 		final ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		PrintStream logger = new PrintStream(baos);
 		SimpleBuildWrapper.Context context = null;
@@ -89,10 +90,22 @@ public class VaultBuildWrapperTest {
 				containsString("Vault credentials not found for 'not/existing'"));
 	}
 
-	private List<VaultSecret> standardSecrets(String path) {
+	private List<VaultSecret> writeSecrets(String path) {
 		List<VaultSecret> secrets = new ArrayList<>();
 		VaultSecretValue secretValue = new VaultSecretValue("envVar1", "key1");
 		secretValue.setVaultSecret("secret1");
+		List<VaultSecretValue> secretValues = new ArrayList<>();
+		secretValues.add(secretValue);
+		VaultSecret secret = new VaultSecret(path, secretValues);
+		secret.setEngineVersion(2);
+		secrets.add(secret);
+		return secrets;
+	}
+	
+	
+	private List<VaultSecret> standardSecrets(String path) {
+		List<VaultSecret> secrets = new ArrayList<>();
+		VaultSecretValue secretValue = new VaultSecretValue("envVar1", "key1");
 		List<VaultSecretValue> secretValues = new ArrayList<>();
 		secretValues.add(secretValue);
 		VaultSecret secret = new VaultSecret(path, secretValues);
@@ -139,7 +152,7 @@ public class VaultBuildWrapperTest {
 			mockAccessor = mock(VaultAccessor.class);
 			doReturn(mockAccessor).when(mockAccessor).init();
 			LogicalResponse response = writeResponse();
-			when(mockAccessor.read("are/existing", 2)).thenReturn(response);
+			when(mockAccessor.write(any(String.class), any(HashMap.class), any(Integer.class))).thenReturn(response);
 			setVaultAccessor(mockAccessor);
 			setConfiguration(vaultConfig);
 		}
